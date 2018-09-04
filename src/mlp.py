@@ -1,18 +1,19 @@
 import numpy as np
 
 class MLP(object):
-    def __init__(self, form, input, output, act_type): # [10(input(0th)), 10(hidden(1st)), 5(hidden(2nd)), 5(hidden(3rd)), 2(output(4th))]
+    def __init__(self, form, input, output, act_type):
         self.act_type = act_type
+        self.d = output
         self.form = form
-        self.layer0 = Input(input)
+        self.layer0 = Input(input, form[1])
         self.layers = [self.layer0]
 
     def init_network(self):
         act_type = self.act_type
         n = self.form
-        [self.layers.append(Hidden(n[l-1], n[l], act_type[l-1])) for l in range(1, len(n)-1)]
-        # self.layers.append(Output(n[-2], n[-1], act_type[-1]))
-
+        self.layers = [layer0] # initialize l=0 as input layer
+        [self.layers.append(Hidden(self.layers[i-1].forwarding(), n[i+1], act_type[i-1])) for i in range(1, len(n)-1)] # initialize 0<l<len(n)-1 as hidden layer
+        self.layers.append(Output(self.layers[-1].forwarding(), self.d, act_type[-1])) #initialize l=len(n) layer as output layer
         return self.layers
     
     def run(self):
@@ -41,7 +42,7 @@ class MLP(object):
 class Input(object):
     def __init__(self, input, n):
         self.x = input
-        self.weight = 2 * np.random.random((len(self.x[0]), 5)) - 1
+        self.weight = np.random.random((len(self.x[0]), 5))
     
     def forwarding(self):
         self.z = np.dot(self.x, self.weight)
@@ -58,7 +59,7 @@ class Hidden(object):
         self.activation = Regression()
         self.act_type = act_type
         self.x = input
-        self.weight = 2 * np.random.random((len(self.x[0]), n)) -1
+        self.weight = np.random.random((len(self.x[0]), n))
         
     def hidden_net(self):
         self.z = np.dot(self.x, self.weight)
@@ -71,6 +72,8 @@ class Hidden(object):
         elif(self.act_type == Regression.TANH):
             self.a = self.activation.tanh(z)
             return self.a
+        elif(self.act_type == Regression.RELU):
+            return self.activation.relu(z)
 
     def forwarding(self):
         z = self.hidden_net()
@@ -81,7 +84,7 @@ class Hidden(object):
         return
 
 class Output(object):
-    def __init__(self, input, d, n, act_type):
+    def __init__(self, input, d, act_type):
         self.activation = Regression()
         self.act_type = act_type
         self.x = input
@@ -92,6 +95,8 @@ class Output(object):
             return self.activation.logistic(z)
         elif(self.act_type == Regression.TANH):
             return self.activation.tanh(z)
+        elif(self.act_type == Regression.RELU):
+            return self.activation.relu(z)
 
     def forwarding(self):
         self.y = self.activation_fn(self.x)
@@ -105,6 +110,7 @@ class Output(object):
 
 class Regression(object):
     LOGISTIC = 'LOGISTIC'
+    RELU = 'RELU'
     TANH = 'TANH'
 
     def logistic(self, x, d=False):
@@ -112,19 +118,39 @@ class Regression(object):
             return x * (1 - x)
         return 1 / (1 + np.exp(-x))
     
+    def relu(self, x, d=False):
+        if(d):
+            return 1. * (x > 0)
+        return np.maximum(x, 0)
+
     def tanh(self, x, d=False):
         if(d):
             return 1 - x ** 2
         return np.tanh(x)
 
+
+""" 
+program testing section 
+"""
+
 reg = Regression()
 a = np.random.random((6, 1))
 f = [6, 5, 3, 3, 2]
 
-input = np.genfromtxt('..\\data\\flood.csv', delimiter=',')
+input = np.genfromtxt('..\\data\\flood-input.csv', delimiter=',')
+d = np.genfromtxt('..\\data\\flood-desired-output.csv', delimiter=',')
 layer0 = Input(input, 5)
 print(layer0.weight)
 print('******', layer0.forwarding())
-layer1 = Hidden(layer0.forwarding(), 2, reg.LOGISTIC)
+layer1 = Hidden(layer0.forwarding(), 3, reg.RELU)
 print('******', layer1.x)
 print(layer1.forwarding())
+layer2 = Hidden(layer1.forwarding(), 1, reg.RELU) # 1 is number of output nodes
+print(layer2.forwarding())
+layer3 = Output(layer2.forwarding(), d, reg.RELU)
+print(layer3.forwarding())
+
+nn = MLP([len(input[0]), 5, 5, 1], input, d, [reg.TANH, reg.RELU, reg.LOGISTIC])
+nn.init_network()
+
+print(nn.layers[-1])
