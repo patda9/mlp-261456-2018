@@ -54,7 +54,11 @@ class MLP(object):
 class Input(object):
     def __init__(self, input, n):
         self.x = input
+        self.bias = np.ones((len(self.x), 1))
         self.weight = np.random.random((len(self.x[0]), n))
+
+    def extend_bias(self):
+        self.x = np.concatenate((self.x, self.bias), axis=1)
 
     def forwarding(self):
         self.z = np.dot(self.x, self.weight)
@@ -65,7 +69,6 @@ class Input(object):
         delta_w = input.dot(gradient)
         self.weight += -learning_rate * delta_w
         return gradient.dot(self.weight[:-1].T)
-
 
 class Hidden(object):
     def __init__(self, input, n, act_type):
@@ -169,3 +172,6 @@ nn.init_network()
 print(nn.layers[1].a)
 nn.forwarding()
 print(nn.layers[-1].e)
+nn.layers[0].extend_bias()
+print(nn.layers[0].bias)
+print(nn.layers[0].x)
