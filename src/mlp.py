@@ -1,7 +1,16 @@
 import numpy as np
 
-def write_to_file(s_array, l):
-    with open('test' + str(l) + '.txt', 'w') as f:
+learning_rate = 0
+
+def write_to_file(s_array, l, n):
+    file = ''
+    if(l == 0):
+        file = 'input'
+    elif(l > 0 and l < len(n)-1):
+        file = 'hidden'
+    else:
+        file = 'output'
+    with open(file + str(l) + '.txt', 'w') as f:
         for el in s_array:
             f.write(str(el) + str('\n'))
 
@@ -17,8 +26,8 @@ class MLP(object):
         act_type = self.act_type
         n = self.form
         self.layers = [self.layer0]  # initialize l=0 as input layer
-        [self.layers.append(Hidden(self.layers[i-1].forwarding(), n[i+1], act_type[i-1])) for i in range(1, len(n)-1)]  # initialize 0<l<len(n)-1 as hidden layer
-        self.layers.append(Output(self.layers[-1].forwarding(), self.d, act_type[-1])) # initialize l=len(n) layer as output layer
+        [self.layers.append(Hidden(self.layers[i-1].forwarding(self.layers[i-1].x), n[i+1], act_type[i-1])) for i in range(1, len(n)-1)] # initialize 0<l<len(n)-1 as hidden layer
+        self.layers.append(Output(self.layers[-1].forwarding(self.layers[-2].x), self.d, act_type[-1])) # initialize l=len(n) layer as output layer
         return self.layers
 
     def run(self):
@@ -31,16 +40,20 @@ class MLP(object):
         l = 0
         for layer in self.layers:
             # x = outputs[-1]
-            y = layer.forwarding()
-            write_to_file(y, l)
+            y = layer.forwarding(self.layers[l].x)
+            write_to_file(y, l, self.form)
             l += 1
             # outputs.append(y)
         # return outputs
+
     def calculate_loss(self):
         pass
 
     def back_propagation(self):
-        pass
+        grad = self.layers[-1].back_propagation()
+        for layer in reversed(self.layers[:-1]):
+            output = layer.x
+            grad = layer.back_propagation(output, grad, learning_rate)
 
     def train(self, k):
         # 10-fold (10%) cross validation
@@ -59,15 +72,16 @@ class Input(object):
         bias = np.ones((len(self.x), 1))
         return np.concatenate((x, bias), axis=1)
 
-    def forwarding(self):
-        x = self.x
-        x = self.extend_bias(x)
+    def forwarding(self, input):
+        x = input
+        x = self.extend_bias(input)
         self.z = np.dot(x, self.weight)
+        # print('input: return of forward(), dim:', x.shape)
         return self.z
 
     def back_propagation(self, input, grad, learning_rate):
-        # input = extend_input_bias(input).T
-        delta_w = input.dot(grad)
+        input = self.extend_bias(input)
+        delta_w = np.dot((input.T), grad)
         self.weight += -learning_rate * delta_w
         return grad.dot(self.weight[:-1].T)
 
@@ -82,10 +96,11 @@ class Hidden(object):
         bias = np.ones((len(self.x), 1))
         return np.concatenate((x, bias), axis=1)
     
-    def hidden_net(self):
-        x = self.x
+    def hidden_net(self, input):
+        x = input
         x = self.extend_bias(x)
         self.z = np.dot(x, self.weight)
+        # print('hidden: return of forward(), dim:', x.shape)
         return self.z
 
     def activation_fn(self, z, d=False):
@@ -99,13 +114,18 @@ class Hidden(object):
             self.a = self.activation.relu(z)
             return self.a
 
-    def forwarding(self):
-        z = self.hidden_net()
+    def forwarding(self, input):
+        z = self.hidden_net(input)
         a = self.activation_fn(z)
         return a
 
-    def back_propagation(self, grad, learning_rate):
-        return
+    def back_propagation(self, input, grad, learning_rate):
+        input = self.extend_bias(input)
+        delta_w = np.dot((input.T), grad)
+        print(delta_w)
+        self.weight += -learning_rate * delta_w
+
+        return np.dot(grad, self.weight[:-1].T)
 
 
 class Output(object):
@@ -123,8 +143,13 @@ class Output(object):
         elif(self.act_type == Regression.RELU):
             return self.activation.relu(z)
 
-    def forwarding(self):
-        self.y = self.activation_fn(self.x)
+    def extend_bias(self, x):
+        bias = np.ones((len(self.x), 1))
+        return np.concatenate((x, bias), axis=1)
+
+    def forwarding(self, input):
+        x = input
+        self.y = self.activation_fn(x)
         self.e = self.d - self.y
         return self.y
 
@@ -176,7 +201,8 @@ nn.init_network()
 # print(nn.layers[-1])
 # print(nn.layers[1].a)
 # print(nn.layers[1].hidden_net())
-print(nn.layers[1].a)
+# print(nn.layers[1].a)
 nn.forwarding()
-print(nn.layers[-1].e)
-print(nn.layers[2].extend_bias(nn.layers[2].x))
+nn.back_propagation()
+# print(nn.layers[-1].e)
+# print(nn.layers[2].extend_bias(nn.layers[2].x))
