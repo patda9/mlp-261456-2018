@@ -17,11 +17,8 @@ class MLP(object):
         act_type = self.act_type
         n = self.form
         self.layers = [self.layer0]  # initialize l=0 as input layer
-        [self.layers.append(Hidden(self.layers[i-1].forwarding(), n[i+1], act_type[i-1]))
-         for i in range(1, len(n)-1)]  # initialize 0<l<len(n)-1 as hidden layer
-        # initialize l=len(n) layer as output layer
-        self.layers.append(
-            Output(self.layers[-1].forwarding(), self.d, act_type[-1]))
+        [self.layers.append(Hidden(self.layers[i-1].forwarding(), n[i+1], act_type[i-1])) for i in range(1, len(n)-1)]  # initialize 0<l<len(n)-1 as hidden layer
+        self.layers.append(Output(self.layers[-1].forwarding(), self.d, act_type[-1])) # initialize l=len(n) layer as output layer
         return self.layers
 
     def run(self):
@@ -39,6 +36,8 @@ class MLP(object):
             l += 1
             # outputs.append(y)
         # return outputs
+    def calculate_loss(self):
+        pass
 
     def back_propagation(self):
         pass
@@ -54,31 +53,39 @@ class MLP(object):
 class Input(object):
     def __init__(self, input, n):
         self.x = input
-        self.bias = np.ones((len(self.x), 1))
-        self.weight = np.random.random((len(self.x[0]), n))
+        self.weight = np.random.random((len(self.x[0])+1, n)) # add 1 dimension for extended bias
 
-    def extend_bias(self):
-        self.x = np.concatenate((self.x, self.bias), axis=1)
+    def extend_bias(self, x):
+        bias = np.ones((len(self.x), 1))
+        return np.concatenate((x, bias), axis=1)
 
     def forwarding(self):
-        self.z = np.dot(self.x, self.weight)
+        x = self.x
+        x = self.extend_bias(x)
+        self.z = np.dot(x, self.weight)
         return self.z
 
-    def back_propagation(self, input, gradient, learning_rate):
+    def back_propagation(self, input, grad, learning_rate):
         # input = extend_input_bias(input).T
-        delta_w = input.dot(gradient)
+        delta_w = input.dot(grad)
         self.weight += -learning_rate * delta_w
-        return gradient.dot(self.weight[:-1].T)
+        return grad.dot(self.weight[:-1].T)
 
 class Hidden(object):
     def __init__(self, input, n, act_type):
         self.activation = Regression()
         self.act_type = act_type
         self.x = input
-        self.weight = np.random.random((len(self.x[0]), n))
-
+        self.weight = np.random.random((len(self.x[0])+1, n))
+    
+    def extend_bias(self, x):
+        bias = np.ones((len(self.x), 1))
+        return np.concatenate((x, bias), axis=1)
+    
     def hidden_net(self):
-        self.z = np.dot(self.x, self.weight)
+        x = self.x
+        x = self.extend_bias(x)
+        self.z = np.dot(x, self.weight)
         return self.z
 
     def activation_fn(self, z, d=False):
@@ -97,7 +104,7 @@ class Hidden(object):
         a = self.activation_fn(z)
         return a
 
-    def back_propagation(self, grad):
+    def back_propagation(self, grad, learning_rate):
         return
 
 
@@ -172,6 +179,4 @@ nn.init_network()
 print(nn.layers[1].a)
 nn.forwarding()
 print(nn.layers[-1].e)
-nn.layers[0].extend_bias()
-print(nn.layers[0].bias)
-print(nn.layers[0].x)
+print(nn.layers[2].extend_bias(nn.layers[2].x))
