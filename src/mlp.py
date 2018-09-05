@@ -1,111 +1,171 @@
 import numpy as np
 
+def write_to_file(s_array, l):
+    with open('test' + str(l) + '.txt', 'w') as f:
+        for el in s_array:
+            f.write(str(el) + str('\n'))
+
 class MLP(object):
-    def __init__(self, form, input, act_type): # [10(input(0th)), 10(hidden(1st)), 5(hidden(2nd)), 5(hidden(3rd)), 2(output(4th))]
+    def __init__(self, form, input, output, act_type):
         self.act_type = act_type
+        self.d = output
         self.form = form
-        self.layer0 = Input(input)
+        self.layer0 = Input(input, form[1])
         self.layers = [self.layer0]
 
     def init_network(self):
         act_type = self.act_type
         n = self.form
-        [self.layers.append(Hidden(n[l-1], n[l], act_type[l-1])) for l in range(1, len(n)-1)]
-        self.layers.append(Output(n[-2], n[-1], act_type[-1]))
-
+        self.layers = [self.layer0]  # initialize l=0 as input layer
+        [self.layers.append(Hidden(self.layers[i-1].forwarding(), n[i+1], act_type[i-1]))
+         for i in range(1, len(n)-1)]  # initialize 0<l<len(n)-1 as hidden layer
+        # initialize l=len(n) layer as output layer
+        self.layers.append(
+            Output(self.layers[-1].forwarding(), self.d, act_type[-1]))
         return self.layers
-    
+
     def run(self):
+        # init_network -> back_prop -> forward : -1 epoch from forward initialization
         pass
-    
-    def forwarding(self):
-        input = self.layers[0]
 
-        outputs = [input.forwarding()]
-        for layer in self.layers[1:]:
-            x = outputs[-1]
-            y = layer.forward(x)
-            outputs.append(y)
-
-        return outputs
+    def forwarding(self):  # TODO ###
+        # input = self.layers[0]
+        # outputs = [input.forwarding()]
+        l = 0
+        for layer in self.layers:
+            # x = outputs[-1]
+            y = layer.forwarding()
+            write_to_file(y, l)
+            l += 1
+            # outputs.append(y)
+        # return outputs
 
     def back_propagation(self):
         pass
 
-    def train(self):
+    def train(self, k):
+        # 10-fold (10%) cross validation
         pass
-    
+
     def test(self):
         pass
 
-class Input(object):
-    def __init__(self, input):
-        self.input = input
-        self.weight = 2 * np.random.random((len(self.input), 1)) - 1
-    
-    def forwarding(self):
-        return np.dot(self.input, self.weight)
 
-    def back_propagation(self, input):
-        pass
+class Input(object):
+    def __init__(self, input, n):
+        self.x = input
+        self.weight = np.random.random((len(self.x[0]), n))
+
+    def forwarding(self):
+        self.z = np.dot(self.x, self.weight)
+        return self.z
+
+    def back_propagation(self, input, gradient, learning_rate):
+        # input = extend_input_bias(input).T
+        delta_w = input.dot(gradient)
+        self.weight += -learning_rate * delta_w
+        return gradient.dot(self.weight[:-1].T)
+
 
 class Hidden(object):
     def __init__(self, input, n, act_type):
         self.activation = Regression()
         self.act_type = act_type
-        self.input = input
-        self.weight = 2 * np.random.random((input, n)) -1
-        
-    def activation_fn(self, x, d=False):
+        self.x = input
+        self.weight = np.random.random((len(self.x[0]), n))
+
+    def hidden_net(self):
+        self.z = np.dot(self.x, self.weight)
+        return self.z
+
+    def activation_fn(self, z, d=False):
         if(self.act_type == Regression.LOGISTIC):
-            return self.activation.logistic(x)
+            self.a = self.activation.logistic(z)
+            return self.a
         elif(self.act_type == Regression.TANH):
-            return self.activation.tanh(x)
+            self.a = self.activation.tanh(z)
+            return self.a
+        elif(self.act_type == Regression.RELU):
+            self.a = self.activation.relu(z)
+            return self.a
 
     def forwarding(self):
-        return self.activation_fn(self.act_type, self.input)
+        z = self.hidden_net()
+        a = self.activation_fn(z)
+        return a
 
     def back_propagation(self, grad):
-        pass
+        return
+
 
 class Output(object):
-    def __init__(self, input, n, act_type):
+    def __init__(self, input, d, act_type):
         self.activation = Regression()
         self.act_type = act_type
-    
-    def activation_fn(self, x, d=False):
+        self.x = input
+        self.d = d
+
+    def activation_fn(self, z, d=False):
         if(self.act_type == Regression.LOGISTIC):
-            return self.activation.logistic(x)
+            return self.activation.logistic(z)
         elif(self.act_type == Regression.TANH):
-            return self.activation.tanh(x)
+            return self.activation.tanh(z)
+        elif(self.act_type == Regression.RELU):
+            return self.activation.relu(z)
 
     def forwarding(self):
-        return 1
-    
-    def back_propagation(self, output, grad):
-        output = self.forwarding()
-        return self.activation_fn(output, d=True) * grad
+        self.y = self.activation_fn(self.x)
+        self.e = self.d - self.y
+        return self.y
+
+    def back_propagation(self):
+        return self.e * self.activation_fn(self.y, d=True)
+        # output = self.forwarding()
+        # return self.activation_fn(output, d=True) * grad
+
 
 class Regression(object):
     LOGISTIC = 'LOGISTIC'
+    RELU = 'RELU'
     TANH = 'TANH'
 
     def logistic(self, x, d=False):
         if(d):
             return x * (1 - x)
         return 1 / (1 + np.exp(-x))
-    
+
+    def relu(self, x, d=False):
+        if(d):
+            return 1. * (x > 0)
+        return np.maximum(x, 0)
+
     def tanh(self, x, d=False):
         if(d):
             return 1 - x ** 2
         return np.tanh(x)
 
+
+""" 
+program testing section 
+"""
+
 reg = Regression()
 a = np.random.random((6, 1))
 f = [6, 5, 3, 3, 2]
-act = [reg.LOGISTIC, reg.LOGISTIC, reg.TANH]
-mlp = MLP(f, a, act)
-layers = mlp.init_network()
-print(layers)
-print(layers[0].input)
-print(layers[1].input)
+
+
+input = np.genfromtxt('..\\data\\flood-input.csv', delimiter=',')
+d = np.genfromtxt('..\\data\\flood-desired-output.csv', delimiter=',')
+d.shape = (len(d), 1)
+
+nn = MLP([len(input[0]), 5, 5, 1], input, d, [reg.RELU, reg.RELU, reg.RELU])
+nn.init_network()
+# print(nn.layers[1].forwarding())
+# print(len(nn.layers[1].x))
+# print(nn.layers[2].forwarding())
+# print(nn.layers[-1])
+# print(nn.layers[1].a)
+# print(nn.layers[1].hidden_net())
+print(nn.layers[1].a)
+nn.forwarding()
+print(nn.layers[-1].e)
