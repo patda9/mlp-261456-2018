@@ -1,208 +1,144 @@
 import numpy as np
 
-learning_rate = 0
+input = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\flood-input-normalized.csv', delimiter=',')
 
-def write_to_file(s_array, l, n):
-    file = ''
-    if(l == 0):
-        file = 'input'
-    elif(l > 0 and l < len(n)-1):
-        file = 'hidden'
-    else:
-        file = 'output'
-    with open(file + str(l) + '.txt', 'w') as f:
-        for el in s_array:
-            f.write(str(el) + str('\n'))
-
-class MLP(object):
-    def __init__(self, form, input, output, act_type):
-        self.act_type = act_type
-        self.d = output
-        self.form = form
-        self.layer0 = Input(input, form[1])
-        self.layers = [self.layer0]
-
-    def init_network(self):
-        act_type = self.act_type
-        n = self.form
-        self.layers = [self.layer0]  # initialize l=0 as input layer
-        [self.layers.append(Hidden(self.layers[i-1].forwarding(self.layers[i-1].x), n[i+1], act_type[i-1])) for i in range(1, len(n)-1)] # initialize 0<l<len(n)-1 as hidden layer
-        self.layers.append(Output(self.layers[-1].forwarding(self.layers[-2].x), self.d, act_type[-1])) # initialize l=len(n) layer as output layer
-        return self.layers
-
-    def run(self):
-        # init_network -> back_prop -> forward : -1 epoch from forward initialization
-        pass
-
-    def forwarding(self):  # TODO ###
-        # input = self.layers[0]
-        # outputs = [input.forwarding()]
-        l = 0
-        for layer in self.layers:
-            # x = outputs[-1]
-            y = layer.forwarding(self.layers[l].x)
-            write_to_file(y, l, self.form)
-            l += 1
-            # outputs.append(y)
-        # return outputs
-
-    def calculate_loss(self):
-        pass
-
-    def back_propagation(self):
-        grad = self.layers[-1].back_propagation()
-        for layer in reversed(self.layers[:-1]):
-            output = layer.x
-            grad = layer.back_propagation(output, grad, learning_rate)
-
-    def train(self, k):
-        # 10-fold (10%) cross validation
-        pass
-
-    def test(self):
-        pass
-
-
-class Input(object):
-    def __init__(self, input, n):
-        self.x = input
-        self.weight = np.random.random((len(self.x[0])+1, n)) # add 1 dimension for extended bias
-
-    def extend_bias(self, x):
-        bias = np.ones((len(self.x), 1))
-        return np.concatenate((x, bias), axis=1)
-
-    def forwarding(self, input):
-        x = input
-        x = self.extend_bias(input)
-        self.z = np.dot(x, self.weight)
-        # print('input: return of forward(), dim:', x.shape)
-        return self.z
-
-    def back_propagation(self, input, grad, learning_rate):
-        input = self.extend_bias(input)
-        delta_w = np.dot((input.T), grad)
-        self.weight += -learning_rate * delta_w
-        return grad.dot(self.weight[:-1].T)
-
-class Hidden(object):
-    def __init__(self, input, n, act_type):
-        self.activation = Regression()
-        self.act_type = act_type
-        self.x = input
-        self.weight = np.random.random((len(self.x[0])+1, n))
+d = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\flood-d-normalized.csv', delimiter=',')
+d.shape = (len(d), 1)
     
-    def extend_bias(self, x):
-        bias = np.ones((len(self.x), 1))
-        return np.concatenate((x, bias), axis=1)
-    
-    def hidden_net(self, input):
-        x = input
-        x = self.extend_bias(x)
-        self.z = np.dot(x, self.weight)
-        # print('hidden: return of forward(), dim:', x.shape)
-        return self.z
+x = np.array([[0.,0.],
+            [0.,1.],
+            [1.,0.],
+            [1.,1.]])
+                
+y = np.array([[0.],
+			[1.],
+			[1.],
+			[0.]])
 
-    def activation_fn(self, z, d=False):
-        if(self.act_type == Regression.LOGISTIC):
-            self.a = self.activation.logistic(z)
-            return self.a
-        elif(self.act_type == Regression.TANH):
-            self.a = self.activation.tanh(z)
-            return self.a
-        elif(self.act_type == Regression.RELU):
-            self.a = self.activation.relu(z)
-            return self.a
+np.random.seed(1)
 
-    def forwarding(self, input):
-        z = self.hidden_net(input)
-        a = self.activation_fn(z)
-        return a
-
-    def back_propagation(self, input, grad, learning_rate):
-        input = self.extend_bias(input)
-        delta_w = np.dot((input.T), grad)
-        print(delta_w)
-        self.weight += -learning_rate * delta_w
-
-        return np.dot(grad, self.weight[:-1].T)
-
-
-class Output(object):
-    def __init__(self, input, d, act_type):
-        self.activation = Regression()
-        self.act_type = act_type
-        self.x = input
-        self.d = d
-
-    def activation_fn(self, z, d=False):
-        if(self.act_type == Regression.LOGISTIC):
-            return self.activation.logistic(z)
-        elif(self.act_type == Regression.TANH):
-            return self.activation.tanh(z)
-        elif(self.act_type == Regression.RELU):
-            return self.activation.relu(z)
-
-    def extend_bias(self, x):
-        bias = np.ones((len(self.x), 1))
-        return np.concatenate((x, bias), axis=1)
-
-    def forwarding(self, input):
-        x = input
-        self.y = self.activation_fn(x)
-        self.e = self.d - self.y
-        return self.y
-
-    def back_propagation(self):
-        return self.e * self.activation_fn(self.y, d=True)
-        # output = self.forwarding()
-        # return self.activation_fn(output, d=True) * grad
-
-
-class Regression(object):
-    LOGISTIC = 'LOGISTIC'
-    RELU = 'RELU'
-    TANH = 'TANH'
-
-    def logistic(self, x, d=False):
+def activation(x, d=False, f='logistic'):
+    if(f == 'logistic'):
         if(d):
             return x * (1 - x)
         return 1 / (1 + np.exp(-x))
 
-    def relu(self, x, d=False):
-        if(d):
-            return 1. * (x > 0)
-        return np.maximum(x, 0)
+def extend_bias(x):
+    bias = np.ones((x.shape[0], 1))
+    return np.concatenate((x, bias), axis=1)
 
-    def tanh(self, x, d=False):
-        if(d):
-            return 1 - x ** 2
-        return np.tanh(x)
+class Input(object):
+    def __init__(self, input):
+        self.x = input
+    
+    def forward(self):
+        return self.x
+
+class Hidden(object):
+    def __init__(self, n_input, n):
+        self.weight = np.random.random((n_input, n))
+
+    def forward(self, input):
+        z = input.dot(self.weight)
+        a = activation(z)
+        return a
+
+    def back(self, e, input, output):
+        gradient = e * activation(output, d=True)
+        self.weight += input.T.dot(gradient) # l0T dot grad
+        return gradient.dot(self.weight.T)
+
+class Output(object):
+    def __init__(self, n_input, n):
+        self.weight = np.random.random((n_input, n))
+
+    def forward(self, input):
+        z = input.dot(self.weight)
+        a = activation(z)
+        return a
+
+    def back(self, d, input, output):
+        e = d - output
+        gradient = e * activation(output, d=True)
+        self.weight += input.T.dot(gradient) # l0T dot grad
+        return gradient.dot(self.weight.T) # error
+
+class MLP(object):
+    def __init__(self, form, input, output):
+        self.d = output
+        self.form = form
+        self.x = input
+    
+    def init_network(self, form, activation=[]):
+        layers = [Input(self.x)]
+        for l in range(1, len(form)-1):
+            layers.append(Hidden(form[l-1], form[l]))
+        layers.append(Output(form[-2], form[-1]))
+        return layers
+
+def print_weights(layers):
+    for l in layers[1:]:
+        print(l.weight)
+
+def forward(layers):
+    outputs = [layers[0].forward()]
+    for l in layers[1:]:
+        x = outputs[-1]
+        a = l.forward(x)
+        outputs.append(a)
+    return outputs
+
+def back(d, layers, outputs):
+    e = d
+    for l in reversed(layers[1:]):
+        output = outputs.pop()
+        input = outputs[-1]
+        e = l.back(e, input, output)
 
 
-""" 
-program testing section 
-"""
+nn = MLP([x.shape[1], 3, 1], x, y)
+activations = ['LOGISTIC', 'LOGISTIC']
+layers = nn.init_network(nn.form)
 
-reg = Regression()
-a = np.random.random((6, 1))
-f = [6, 5, 3, 3, 2]
+cost = np.inf
+i = 0
+while(cost > 1e-3):
+    outputs = forward(layers)
+    e = nn.d - outputs[-1]
+    cost = np.mean(np.abs(e))
+    if(i % 5000 == 0):
+        print(i, 'mse:' , cost)
+    back(nn.d, layers, outputs)
+    i += 1
 
+# Prototype
+# h = Hidden(2, 3)
+# weight_o = 2 * np.random.random((3, 1)) -1
+# for i in range(120000):
+#     yh = h.forward(x)
+#     # print('w-before', h.weight)
+#     yo = activation(yh.dot(weight_o))
+#     eo = y - yo
+#     if(i % 5000 == 0):
+#         print('error:' ,np.mean(np.abs(eo)))
+#     ograd = eo * activation(yo, d=True)
+#     weight_o += yh.T.dot(ograd)
+#     eh = ograd.dot(weight_o.T)
+#     h.back(eh, x, yh)
+#     # print('w-after', h.weight)
 
-input = np.genfromtxt('..\\data\\flood-input.csv', delimiter=',')
-d = np.genfromtxt('..\\data\\flood-desired-output.csv', delimiter=',')
-d.shape = (len(d), 1)
+# Forward Test
+# input = np.asarray([[0, 0],
+#     [0, 1],
+#     [1, 0],
+#     [1, 1]])
 
-nn = MLP([len(input[0]), 5, 5, 1], input, d, [reg.RELU, reg.RELU, reg.RELU])
-nn.init_network()
-# print(nn.layers[1].forwarding())
-# print(len(nn.layers[1].x))
-# print(nn.layers[2].forwarding())
-# print(nn.layers[-1])
-# print(nn.layers[1].a)
-# print(nn.layers[1].hidden_net())
-# print(nn.layers[1].a)
-nn.forwarding()
-nn.back_propagation()
-# print(nn.layers[-1].e)
-# print(nn.layers[2].extend_bias(nn.layers[2].x))
+# w0 = np.asarray([[7.48836465, 6.54532016, -5.32719126],
+#  [-5.32126606 ,6.54034775 ,7.50611517]])
+# w1 = np.asarray([[-19.68665978],
+#  [ 26.67530248],
+#  [-19.68571172]])
+
+# a0 = activation(input.dot(w0))
+# a1 = activation(a0.dot(w1))
+# print(a1)
