@@ -64,11 +64,10 @@ def extend_bias(x):
     bias = np.ones((x.shape[0], 1))
     return np.concatenate((x, bias), axis=1)
 
-def forward(layers, input=None):
-    if(input != None):
-        outputs = [input.forward()]
-    else:
-        outputs = [layers[0].forward()]
+def forward(layers, input=[]):
+    if(len(input) > 0):
+        layers[0].set_input(input)
+    outputs = [layers[0].forward()]
     for l in layers[1:]:
         x = outputs[-1]
         a = l.forward(x)
@@ -92,6 +91,9 @@ class Input(object):
     
     def forward(self):
         return self.x
+    
+    def set_input(self, input):
+        self.x = input
 
 class Hidden(object):
     def __init__(self, n_input, n):
@@ -175,7 +177,9 @@ def k_fold(form, input, d, k):
         test(train(form, training_set[i], d_train[i]), testing_set[i], d_test[i])
 
 def test(layers, testing_set, d_test):
-    output = forward(layers)[-1]
+    print(testing_set)
+
+    output = forward(layers, testing_set)[-1]
     out_temp = output.copy()
     d_test_temp = d_test.copy()
     compare = np.concatenate((out_temp, d_test_temp), axis=1)
