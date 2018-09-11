@@ -36,7 +36,7 @@ class Input(object):
 
 class Hidden(object):
     def __init__(self, n_input, n):
-        self.weight = np.random.random((n_input, n))
+        self.weight = np.random.random((n_input, n)) / np.sqrt(n_input) # xavier initialization
 
     def forward(self, input):
         z = input.dot(self.weight)
@@ -50,7 +50,7 @@ class Hidden(object):
 
 class Output(object):
     def __init__(self, n_input, n):
-        self.weight = np.random.random((n_input, n))
+        self.weight = np.random.random((n_input, n)) / np.sqrt(n_input) # xavier initialization
 
     def forward(self, input):
         z = input.dot(self.weight)
@@ -62,6 +62,14 @@ class Output(object):
         gradient = e * activation(output, d=True)
         self.weight += input.T.dot(gradient) # l0T dot grad
         return gradient.dot(self.weight.T) # error
+
+def k_fold(input, k):
+    fold_len = int(input.shape[0]/k)
+    folds = []
+    for i in range(k-1):
+        folds += [input[i*fold_len:(i+1)*fold_len]]
+    folds += [input[k*fold_len:input.shape[0]]]
+    return folds
 
 class MLP(object):
     def __init__(self, form, input, output):
@@ -96,7 +104,7 @@ def back(d, layers, outputs):
         e = l.back(e, input, output)
 
 
-nn = MLP([x.shape[1], 3, 1], x, y)
+nn = MLP([x.shape[1], 3, 3, 1], x, y)
 activations = ['LOGISTIC', 'LOGISTIC']
 layers = nn.init_network(nn.form)
 
