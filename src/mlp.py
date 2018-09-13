@@ -1,14 +1,24 @@
 import numpy as np
 
-input = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\flood-input-normalized.csv', delimiter=',')
-input_us = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\flood-input.csv', delimiter=',')
+# input = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\flood-input-normalized.csv', delimiter=',')
+# input_us = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\flood-input.csv', delimiter=',')
+input = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\cross-input.csv', delimiter=',')
+input_us = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\cross-input.csv', delimiter=',')
 
-d = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\flood-d-normalized.csv', delimiter=',')
-d_us = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\flood-desired-output.csv', delimiter=',')
-d.shape = (len(d), 1)
-d_us.shape = (len(d), 1)
+# d = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\flood-d-normalized.csv', delimiter=',')
+# d_us = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\flood-desired-output.csv', delimiter=',')
+d = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\cross-output.csv', delimiter=',')
+d_us = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\cross-output.csv', delimiter=',')
 
-# np.random.seed(1)
+try:
+    d.shape = (d.shape[0], d.shape[1])
+    d_us.shape = (d.shape[0], d.shape[1])
+except:
+    d.shape = (d.shape[0], 1)
+    d_us.shape = (d.shape[0], 1)
+    pass
+
+np.random.seed(1)
 
 def activation(x, f, d=False):
     if(f == 'logistic'):
@@ -55,7 +65,6 @@ def back(i, d, layers, outputs, lr):
         input = outputs[-1]
         result = l.back(e, input, output, i, means[j], variances[j], lr)
         e = result[0]
-        gradient = result[1]
         j += 1
     
 def print_weights(layers):
@@ -83,7 +92,7 @@ class Hidden(object):
         a = activation(z, self.act)
         return a
 
-    def back(self, e, input, output, t, m, v, lr, b1=.9, b2=.999, eps=1e-7):
+    def back(self, e, input, output, t, m, v, lr, b1=.9, b2=.98, eps=1e-5):
         input = extend_bias(input)
         gradient = e * activation(output, self.act, d=True)
 
@@ -106,11 +115,11 @@ class Output(object):
         a = activation(z, self.act)
         return a
 
-    def back(self, d, input, output, t, m, v, lr, b1=.9, b2=.999, eps=1e-7):
+    def back(self, d, input, output, t, m, v, lr, b1=.9, b2=.98, eps=1e-5):
         e = d - output
         input = extend_bias(input)
-        
         gradient = e * activation(output, self.act, d=True)
+
         m = b1 * m + (1 - b1) * gradient # use adam optimization in gradient descent
         v = b2 * v + (1 - b2) * (gradient ** 2)
         m_hat = m/(1 - np.power(b1, t))
@@ -133,42 +142,44 @@ class MLP(object):
         layers.append(Output(activations[-1], form[-2], form[-1]))
         return layers
 
+from math import ceil
+
 def k_fold(activations, form, input, d, k, learning_rate):
     # features[i] and label[i] must be at the same position after shuffling so concatenate them first
     data = np.concatenate((input, d), axis=1)
     np.random.shuffle(data)
-    
-    # this block separate features from output label
-    input = data[:, :-1]
-    d = data.T[-1].reshape(data.shape[0], 1) 
 
+    # this block separate features from output label
+    input = np.hsplit(data, [input.shape[1]])[0]
+    d = np.hsplit(data, [input.shape[1]])[1].reshape(d.shape) # data.T[-(d.shape[1]):].reshape(data.shape[0], d.shape[1])
     # partition into folds
-    fold_len = int(data.shape[0]/k)
+    fold_len = int(data.shape[0] / k)
     input_folds = []
     output_folds = []
     for i in range(k):
         input_folds += [input[i * fold_len:(i+1) * fold_len]]
         output_folds += [d[i * fold_len:(i+1) * fold_len]]
-    input_folds += [input[k * fold_len:input.shape[0]]]
-    output_folds += [d[k * fold_len:d.shape[0]]]
-
+    if(input.shape[0] % k > 0): # prevent empty array
+        input_folds += [input[k * fold_len:input.shape[0]]]
+        output_folds += [d[k * fold_len:d.shape[0]]]
+    
     sum_acc = 0
     models = []
     for i in range(k):
         print('fold:', i)
         input_temp = input_folds.copy()
         output_temp = output_folds.copy()
-        testing_set = input_temp
-        d_test = output_temp
+        testing_set = input_temp[i]
+        d_test = output_temp[i]
         del(input_temp[i])
         del(output_temp[i])
-        training_set = input_temp
-        d_train = output_temp
-        layers = train(activations, form, training_set[i], d_train[i], learning_rate)
-        fold_acc = test(layers, testing_set[i], d_test[i])
+        training_set = np.concatenate(input_temp, axis=0)
+        d_train = np.concatenate(output_temp, axis=0)
+        layers = train(activations, form, training_set, d_train, learning_rate)
+        fold_acc = test(layers, testing_set, d_test)
         sum_acc += fold_acc
         models.append(layers)
-        print('fold[' + str(i) + '] accuracy:', fold_acc)
+        print('fold[' + str(i) + '] accuracy:', fold_acc, '%')
     print('avg accuracy:', sum_acc / k)
     return models
 
@@ -180,19 +191,30 @@ def test(layers, testing_set, d_test):
     out_us = scale_back(output, d_us)
     d_test_us = scale_back(d_test, d_us)
     compare = np.concatenate((out_us, d_test_us), axis=1)
-    print('       y           d')
+    print('(y, d)')
     print(compare)
-    accuracy = 100 - ((np.abs(out_us - d_test_us) / d_test_us) * 100)
-    avg_acc = np.mean(accuracy)
-    return avg_acc
-
+    
+    hit = 0
+    if(d.shape[1] < 2): # prediction accuracy
+        accuracy = 100 - ((np.abs(out_us - d_test_us) / (d_test_us + 1e-4)) * 100) # adding small value to prevent divided by 0
+    # avg_acc = np.mean(accuracy) # predicton accuracy
+    # return avg_acc
+    else: # this condition use only for cross.pat
+        y = np.around(out_us)
+        for i in range(len(y)):
+            if(np.array_equal(y[i], d[i])):
+                hit += 1
+        print('correct:', hit, 'from:', len(y))
+    accuracy = (hit / d_test.shape[0]) * 100
+    return accuracy
+    
 def train(activations, form, training_set, d_train, learning_rate):
     model = MLP(activations, form, training_set, d_train)
     layers = model.init_network(activations, model.form)
     cost = np.inf
 
     i = 1
-    epochs = 2 ** 17
+    epochs = 3000
     while(cost > 1e-4 and i <= epochs):
         outputs = forward(layers)
         e = model.d - outputs[-1]
@@ -205,5 +227,5 @@ def train(activations, form, training_set, d_train, learning_rate):
 
 learning_rate = .01
 activations = ['logistic', 'logistic', 'logistic',]
-form = [input.shape[1], 3, 3, 1]
+form = [input.shape[1], 3, 3, 2]
 k_fold(activations, form, input, d, 10, learning_rate)
