@@ -176,10 +176,13 @@ def test(layers, testing_set, d_test):
     hit = 0
     if(d.shape[1] < 2): # prediction accuracy
         accuracy = 100 - ((np.abs(out_us - d_test_us) / (d_test_us + 1e-5)) * 100) # adding small value to prevent divided by 0
-    avg_acc = np.mean(accuracy) # average predicton accuracy
-    return avg_acc
+        avg_acc = np.mean(accuracy) # average predicton accuracy
+        return avg_acc
     # else: # this condition use only for cross.pat
     #     y = np.around(out_us)
+    #     if(y != d):
+            
+            # accuracy = (tp + tn)/(tp + tn + fp +fn)
     #     for i in range(len(y)):
     #         if(np.array_equal(y[i], d[i])):
     #             hit += 1
