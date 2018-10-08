@@ -1,24 +1,5 @@
 import numpy as np
-
-# input = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\flood-input-normalized.csv', delimiter=',')
-# input_us = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\flood-input.csv', delimiter=',')
-input = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\cross-input.csv', delimiter=',')
-input_us = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\cross-input.csv', delimiter=',')
-
-# d = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\flood-d-normalized.csv', delimiter=',')
-# d_us = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\flood-desired-output.csv', delimiter=',')
-d = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\cross-output.csv', delimiter=',')
-d_us = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\cross-output.csv', delimiter=',')
-
-try:
-    d.shape = (d.shape[0], d.shape[1])
-    d_us.shape = (d.shape[0], d.shape[1])
-except:
-    d.shape = (d.shape[0], 1)
-    d_us.shape = (d.shape[0], 1)
-    pass
-
-np.random.seed(1)
+import sys
 
 def activation(x, f, d=False):
     if(f == 'logistic'):
@@ -142,9 +123,7 @@ class MLP(object):
         layers.append(Output(activations[-1], form[-2], form[-1]))
         return layers
 
-from math import ceil
-
-def k_fold(activations, form, input, d, k, learning_rate):
+def k_fold(activations, form, input, d, k, learning_rate, epochs):
     # features[i] and label[i] must be at the same position after shuffling so concatenate them first
     data = np.concatenate((input, d), axis=1)
     np.random.shuffle(data)
@@ -175,12 +154,12 @@ def k_fold(activations, form, input, d, k, learning_rate):
         del(output_temp[i])
         training_set = np.concatenate(input_temp, axis=0)
         d_train = np.concatenate(output_temp, axis=0)
-        layers = train(activations, form, training_set, d_train, learning_rate)
+        layers = train(activations, form, training_set, d_train, learning_rate, epochs)
         fold_acc = test(layers, testing_set, d_test)
         sum_acc += fold_acc
         models.append(layers)
         print('fold[' + str(i) + '] accuracy:', fold_acc, '%')
-    print('avg accuracy:', sum_acc / k)
+    print('avg accuracy:', sum_acc / k, '%')
     return models
 
 def scale_back(s, a):
@@ -196,25 +175,27 @@ def test(layers, testing_set, d_test):
     
     hit = 0
     if(d.shape[1] < 2): # prediction accuracy
-        accuracy = 100 - ((np.abs(out_us - d_test_us) / (d_test_us + 1e-4)) * 100) # adding small value to prevent divided by 0
-    # avg_acc = np.mean(accuracy) # predicton accuracy
-    # return avg_acc
-    else: # this condition use only for cross.pat
-        y = np.around(out_us)
-        for i in range(len(y)):
-            if(np.array_equal(y[i], d[i])):
-                hit += 1
-        print('correct:', hit, 'from:', len(y))
-    accuracy = (hit / d_test.shape[0]) * 100
+        accuracy = 100 - ((np.abs(out_us - d_test_us) / (d_test_us + 1e-5)) * 100) # adding small value to prevent divided by 0
+        avg_acc = np.mean(accuracy) # average predicton accuracy
+        return avg_acc
+    # else: # this condition use only for cross.pat
+    #     y = np.around(out_us)
+    #     if(y != d):
+            
+            # accuracy = (tp + tn)/(tp + tn + fp +fn)
+    #     for i in range(len(y)):
+    #         if(np.array_equal(y[i], d[i])):
+    #             hit += 1
+    #     print('correct:', hit, 'from:', len(y))
+    # accuracy = (hit / d_test.shape[0]) * 100
     return accuracy
     
-def train(activations, form, training_set, d_train, learning_rate):
+def train(activations, form, training_set, d_train, learning_rate, epochs):
     model = MLP(activations, form, training_set, d_train)
     layers = model.init_network(activations, model.form)
     cost = np.inf
 
     i = 1
-    epochs = 3000
     while(cost > 1e-4 and i <= epochs):
         outputs = forward(layers)
         e = model.d - outputs[-1]
@@ -225,7 +206,38 @@ def train(activations, form, training_set, d_train, learning_rate):
         i += 1
     return layers
 
-learning_rate = .01
-activations = ['logistic', 'logistic', 'logistic',]
-form = [input.shape[1], 3, 3, 2]
-k_fold(activations, form, input, d, 10, learning_rate)
+input = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\flood-input-normalized.csv', delimiter=',')
+input_us = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\flood-input.csv', delimiter=',')
+# input = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\cross-input.csv', delimiter=',')
+# input_us = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\cross-input.csv', delimiter=',')
+
+d = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\flood-d-normalized.csv', delimiter=',')
+d_us = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\flood-desired-output.csv', delimiter=',')
+# d = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\cross-output.csv', delimiter=',')
+# d_us = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\cross-output.csv', delimiter=',')
+
+try:
+    d.shape = (d.shape[0], d.shape[1])
+    d_us.shape = (d.shape[0], d.shape[1])
+except:
+    d.shape = (d.shape[0], 1)
+    d_us.shape = (d.shape[0], 1)
+    pass
+
+if(__name__ == '__main__'):
+    f = sys.argv[0]
+    dataset = int(sys.argv[1])
+    form = sys.argv[2].split('-')
+    activations = sys.argv[3].split('-')
+    learning_rate = float(sys.argv[4])
+    k = int(sys.argv[5])
+    epochs = int(sys.argv[6])
+    arguments = [f, dataset, form, activations, learning_rate, k, epochs]
+
+    # define mlp parameters
+    form = [input.shape[1]]
+    [form.append(int(l)) for l in arguments[2]]
+    form.append(d.shape[1])
+    print(form)
+    activations = arguments[3]
+    k_fold(activations, form, input, d, k, learning_rate, epochs)
