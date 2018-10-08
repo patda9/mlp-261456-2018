@@ -48,8 +48,8 @@ def back(i, d, layers, outputs, lr):
         e = result[0]
         j += 1
     
-def print_weights(layers):
-    for l in layers[1:]:
+def print_weights(model):
+    for l in model[0][1:]:
         print(l.weight)
 
 class Input(object):
@@ -143,7 +143,7 @@ def k_fold(activations, form, input, d, k, learning_rate, epochs):
         output_folds += [d[k * fold_len:d.shape[0]]]
     
     sum_acc = 0
-    models = []
+    model = []
     for i in range(k):
         print('fold:', i)
         input_temp = input_folds.copy()
@@ -157,10 +157,10 @@ def k_fold(activations, form, input, d, k, learning_rate, epochs):
         layers = train(activations, form, training_set, d_train, learning_rate, epochs)
         fold_acc = test(layers, testing_set, d_test)
         sum_acc += fold_acc
-        models.append(layers)
-        print('fold[' + str(i) + '] accuracy:', fold_acc, '%')
+        print('fold[' + str(i) + '] accuracy:', fold_acc, '%', '\n', '\n')
+    model.append(layers)
     print('avg accuracy:', sum_acc / k, '%')
-    return models
+    return model
 
 def scale_back(s, a):
     return np.add(s * (np.amax(a) - np.amin(a)), np.amin(a))
@@ -170,24 +170,43 @@ def test(layers, testing_set, d_test):
     out_us = scale_back(output, d_us)
     d_test_us = scale_back(d_test, d_us)
     compare = np.concatenate((out_us, d_test_us), axis=1)
-    print('(y, d)')
-    print(compare)
+    print(' [          [y]        ][          [d]       ]')
+    print(compare, '\n')
     
-    hit = 0
     if(d.shape[1] < 2): # prediction accuracy
         accuracy = 100 - ((np.abs(out_us - d_test_us) / (d_test_us + 1e-5)) * 100) # adding small value to prevent divided by 0
         avg_acc = np.mean(accuracy) # average predicton accuracy
         return avg_acc
-    # else: # this condition use only for cross.pat
-    #     y = np.around(out_us)
-    #     if(y != d):
-            
-            # accuracy = (tp + tn)/(tp + tn + fp +fn)
-    #     for i in range(len(y)):
-    #         if(np.array_equal(y[i], d[i])):
-    #             hit += 1
-    #     print('correct:', hit, 'from:', len(y))
-    # accuracy = (hit / d_test.shape[0]) * 100
+    else: # this condition use only for cross.pat
+        tp = 0
+        tn = 0
+        fp = 0
+        fn = 0
+        
+        for i in range(d_test.shape[0]):
+            # transform (y to [0, 1] or [1, 0])
+            if(output[i][0] > output[i][1]):
+                output[i] = np.array([1, 0])
+            elif(output[i][0] < output[i][1]):
+                output[i] = np.array([0, 1])
+            # check (y, d) conditions
+            if(np.array_equal(output[i], d_test[i])):
+                if(np.array_equal(d_test[i], [0, 1])):
+                    tp += 1
+                elif(np.array_equal(d_test[i], [1, 0])):
+                    tn += 1
+                else:
+                    if(np.array_equal(d_test[i], [0, 1])):
+                        fp += 1
+                    elif(np.array_equal(d_test[i], [1, 0])):
+                        fn += 1
+        print('confusion_matrix')
+        print('    |', '[ y ]')
+        print('[d] |', np.array([0, 1]))
+        print('-----------')
+        print(np.array([0]), '|', np.array([tp, tn]))
+        print(np.array([1]), '|', np.array([fp, fn]), '\n')
+        accuracy = ((tp + fn)/(tp + fp + tn + fn)) * 100
     return accuracy
     
 def train(activations, form, training_set, d_train, learning_rate, epochs):
@@ -206,27 +225,28 @@ def train(activations, form, training_set, d_train, learning_rate, epochs):
         i += 1
     return layers
 
-input = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\flood-input-normalized.csv', delimiter=',')
-input_us = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\flood-input.csv', delimiter=',')
-# input = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\cross-input.csv', delimiter=',')
-# input_us = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\cross-input.csv', delimiter=',')
-
-d = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\flood-d-normalized.csv', delimiter=',')
-d_us = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\flood-desired-output.csv', delimiter=',')
-# d = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\cross-output.csv', delimiter=',')
-# d_us = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\intro ci\\mlp-261456-2018\\data\\cross-output.csv', delimiter=',')
-
-try:
-    d.shape = (d.shape[0], d.shape[1])
-    d_us.shape = (d.shape[0], d.shape[1])
-except:
-    d.shape = (d.shape[0], 1)
-    d_us.shape = (d.shape[0], 1)
-    pass
-
 if(__name__ == '__main__'):
     f = sys.argv[0]
     dataset = int(sys.argv[1])
+    if(dataset == 2 or dataset == 'cross'):
+        input = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\ci\\mlp-261456-2018\\data\\cross-input.csv', delimiter=',')
+        input_us = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\ci\\mlp-261456-2018\\data\\cross-input.csv', delimiter=',')
+        d = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\ci\\mlp-261456-2018\\data\\cross-output.csv', delimiter=',')
+        d_us = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\ci\\mlp-261456-2018\\data\\cross-output.csv', delimiter=',')
+    else:
+        input = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\ci\\mlp-261456-2018\\data\\flood-input-normalized.csv', delimiter=',')
+        input_us = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\ci\\mlp-261456-2018\\data\\flood-input.csv', delimiter=',')
+        d = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\ci\\mlp-261456-2018\\data\\flood-d-normalized.csv', delimiter=',')
+        d_us = np.genfromtxt('C:\\Users\\Patdanai\\Desktop\\ci\\mlp-261456-2018\\data\\flood-desired-output.csv', delimiter=',')
+
+    try:
+        d.shape = (d.shape[0], d.shape[1])
+        d_us.shape = (d.shape[0], d.shape[1])
+    except:
+        d.shape = (d.shape[0], 1)
+        d_us.shape = (d.shape[0], 1)
+        pass
+
     form = sys.argv[2].split('-')
     activations = sys.argv[3].split('-')
     learning_rate = float(sys.argv[4])
@@ -240,4 +260,5 @@ if(__name__ == '__main__'):
     form.append(d.shape[1])
     print(form)
     activations = arguments[3]
-    k_fold(activations, form, input, d, k, learning_rate, epochs)
+    model = k_fold(activations, form, input, d, k, learning_rate, epochs)
+    print_weights(model)
