@@ -2,30 +2,35 @@
 A Fully connected Multi-layer Perceptron using Python3
 
 ## Usage:
-### 1.How to run the script
-```
-> cd ./src
-> python mlp.py
-```
-### 2.Input parameters for the multi-layer perceptron model
+### Input parameters in command line for the multi-layer perceptron model
 ```
 1. Input:
-  1.1 Input (scaled): input = <path to .csv file>
-  1.1 Input (unscaled): input_us = <path to .csv file>
+  1.1 Dataset (flood): input <int> 1
+  1.2 Dataset (cross): input <int> 2
   
-2. Desired output:
-  2.1 Desired output (sclaed): d = <path to .csv file>
-  2.2 Desired output (unsclaed): d_us = <path to .csv file>
-  
-3. Network formation: form = <array>
-* Example: 300 dimensions input with first layer with 5 hidden nodes connected to second layer with 3 hidden nodes and 2 output nodes
-* form = [300, 5, 3, 2]
+2. Network architecture: form <string>
+* Example: 5 hidden nodes connected to second layer with 3 hidden nodes output nodes vary in size of desired output classes
+- 5-3
 
-4. Activation units: activations = <array>
-* Example: ReLu, Sigmoid, Sigmoid
-* activations = ['relu', 'logistic', 'logistic']
+3. Activation units: activations <string>
+* Example: ReLu (Hidden1), Sigmoid(Hidden2), Sigmoid(Output)
+- relu-logistic-logistic
 
-5. Learning rate of training: learning_rate = <float> where learning_rate is in [0, 1]
+4. Folds: k<int>; the number folds of folds used in k-fold cross validation
+- 10
 
-6. Use k_fold(activations, form, input, d, k, learning_rate) as a main function where k = folds
+5. Learning rate in training: learning_rate <float>; where learning_rate is in [0, 1]
+- 0.001
+
+6. Training epochs epochs <int>
+- 4096
+```
+### How to run the script
+```
+> cd ./src
+> python mlp.py <dataset> <number of hidden layers> <activation_functions (include output node)> <k> <learning rate> <epochs>
+
+Description: Flood dataset, 5-3-1 Neural network architecture, Sigmoid activation unit for all layers(Hidden1, Hidden2, Output), 10% cross validation with 0.001 learning rate and 4096 training epochs per fold
+
+* Example > python mlp.py 1 5-3 logistic-logistic-logistic 10 0.001 4096
 ```
