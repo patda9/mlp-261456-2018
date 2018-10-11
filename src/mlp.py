@@ -1,6 +1,8 @@
 import numpy as np
 import sys
 
+np.random.seed(1)
+
 def activation(x, f, d=False):
     if(f == 'logistic'):
         if(d):
@@ -136,12 +138,16 @@ def k_fold(activations, form, input, d, k, learning_rate, epochs):
     input_folds = []
     output_folds = []
     for i in range(k):
+        if(i >= k-1):
+            input_folds += [input[i * fold_len:(i+1) * fold_len + (input.shape[0] % fold_len)]]
+            output_folds += [d[i * fold_len:(i+1) * fold_len + (input.shape[0] % fold_len)]]
         input_folds += [input[i * fold_len:(i+1) * fold_len]]
         output_folds += [d[i * fold_len:(i+1) * fold_len]]
+
     if(input.shape[0] % k > 0): # prevent empty array
         input_folds += [input[k * fold_len:input.shape[0]]]
         output_folds += [d[k * fold_len:d.shape[0]]]
-    
+    print(len(output_folds[9]))
     sum_acc = 0
     model = []
     for i in range(k):
@@ -194,18 +200,18 @@ def test(layers, testing_set, d_test):
                 if(np.array_equal(d_test[i], [0, 1])):
                     tp += 1
                 elif(np.array_equal(d_test[i], [1, 0])):
+                    fn += 1
+            else:
+                if(np.array_equal(d_test[i], [0, 1])):
+                    fp += 1
+                elif(np.array_equal(d_test[i], [1, 0])):
                     tn += 1
-                else:
-                    if(np.array_equal(d_test[i], [0, 1])):
-                        fp += 1
-                    elif(np.array_equal(d_test[i], [1, 0])):
-                        fn += 1
         print('confusion_matrix')
-        print('    |', '[ y ]')
-        print('[d] |', np.array([0, 1]))
-        print('-----------')
-        print(np.array([0]), '|', np.array([tp, tn]))
-        print(np.array([1]), '|', np.array([fp, fn]), '\n')
+        print('      |', '[ y ]')
+        print('[d]   |', np.array([0, 1]), np.array([1, 0]))
+        print('--------------------')
+        print(np.array([0, 1]), '|', np.array([tp, tn]))
+        print(np.array([1, 0]), '|', np.array([fp, fn]), '\n')
         accuracy = ((tp + fn)/(tp + fp + tn + fn)) * 100
     return accuracy
     
@@ -219,7 +225,7 @@ def train(activations, form, training_set, d_train, learning_rate, epochs):
         outputs = forward(layers)
         e = model.d - outputs[-1]
         cost = np.mean(np.abs(e))
-        if(i % 32768 == 0):
+        if(i % int(.25 * epochs) == 0):
             print(i, 'mse:' , cost)
         back(i, model.d, layers, outputs, learning_rate)
         i += 1
